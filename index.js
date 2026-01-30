@@ -37,24 +37,17 @@ export class EmailQueue {
   }
 
   async sendWithRetry(email, attempt) {
-    const maxRetries = 3;
-    const baseDelay = 1000;
-    
     try {
       const response = await fetch(this.env.BASE44_WEBHOOK_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Cloudflare-Email-Worker/1.0'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(email)
       });
-
-      if (!response.ok) throw new Error(`Webhook returned ${response.status}`);
+      if (!response.ok) throw new Error(`Status ${response.status}`);
       return { success: true };
     } catch (error) {
-      if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
         return this.sendWithRetry(email, attempt + 1);
       }
       throw error;
@@ -68,16 +61,10 @@ export default {
       const from = message.from;
       const to = message.to;
       const subject = message.headers.get('subject') || '(No subject)';
-      
-      const [textResult, htmlResult] = await Promise.allSettled([
-        message.text().catch(() => ''),
-        message.html().catch(() => '')
-      ]);
+      const text = await message.text().catch(() => '');
+      const html = await message.html().catch(() => '');
 
-      const text = textResult.status === 'fulfilled' ? textResult.value : '';
-      const html = htmlResult.status === 'fulfilled' ? htmlResult.value : '';
       const emailData = { from, to, subject, text, html };
-
       const id = env.QUEUE.idFromName('global-email-queue');
       const queue = env.QUEUE.get(id);
 
