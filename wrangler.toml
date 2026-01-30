@@ -1,0 +1,9 @@
+name = "easymail-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+durable_objects.bindings = [
+  { name = "QUEUE", class_name = "EmailQueue", script_name = "easymail-worker" }
+]
+
+env.production.vars = { BASE44_WEBHOOK_URL = "YOUR_WEBHOOK_URL" }
